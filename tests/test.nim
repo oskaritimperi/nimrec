@@ -410,3 +410,26 @@ Address: 10 Foobar Way
         records = toSeq(records(ss))
         expect(Exception):
             discard newRecordSet(records[0])
+
+suite "type basics: integers":
+    const prologue = """
+%rec: Entry
+%type: Value int
+
+"""
+
+    test "valid integers":
+        const values = ["0", "1", "123456789", "987654321", "-123456789",
+            "-987654321", "-0"]
+
+        for value in values:
+            let data = prologue & "Value: " & value & "\n"
+            discard toSeq(recordsInSet(newStringStream(data), "Entry"))
+
+    test "invalid integers":
+        const values = ["0.0", "foobar", "01", "1-"]
+
+        for value in values:
+            let data = prologue & "Value: " & value & "\n"
+            expect(Exception):
+                discard toSeq(recordsInSet(newStringStream(data), "Entry"))

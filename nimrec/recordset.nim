@@ -2,6 +2,7 @@ import parser
 import record
 import utils
 
+import pegs
 import sequtils
 import sets
 import streams
@@ -10,14 +11,28 @@ import tables
 import times
 
 type
+    FieldKind* {.pure.} = enum
+        Integer
+        String
+
+    FieldDescriptor* = ref object
+        kind*: FieldKind
+
     RecordSet* = ref object
         kind*: string
         doc*: string
+        fields*: TableRef[string, FieldDescriptor]
         mandatory*: HashSet[string]
         allowed*: HashSet[string]
         prohibited*: HashSet[string]
 
     IntegrityError* = object of Exception
+
+proc addFieldDescriptor(recordSet: RecordSet, name: string): FieldDescriptor =
+    if name in recordSet.fields:
+        return recordSet.fields[name]
+    new(result)
+    recordSet.fields[name] = result
 
 proc newRecordSet*(record: Record): RecordSet =
     new(result)
@@ -30,6 +45,8 @@ proc newRecordSet*(record: Record): RecordSet =
 
     if "%doc" in record:
         result.doc = record["%doc"]
+
+    result.fields = newTable[string, FieldDescriptor]()
 
     for value in values(record, "%mandatory"):
         for field in split(value):
@@ -52,6 +69,17 @@ proc newRecordSet*(record: Record): RecordSet =
                 raise newException(Exception, "a field cannot be allowed and prohibited at the same time")
             incl(result.allowed, field)
 
+    for value in values(record, "%type"):
+        let parts = split(value)
+        let label = parts[0]
+        let kind = parts[1]
+        let desc = addFieldDescriptor(result, label)
+        case kind
+        of "int": desc.kind = FieldKind.Integer
+        else: desc.kind = FieldKind.String
+
+let integerPeg = peg"^ '-'? ('0' / ([1-9] \d*)) $"
+
 proc validate*(record: Record, recordSet: RecordSet) =
     let labels = toSet(toSeq(labels(record)))
 
@@ -67,6 +95,18 @@ proc validate*(record: Record, recordSet: RecordSet) =
         if mandatoryLabel notin labels:
             raise newException(IntegrityError, format("mandatory: $1",
                 mandatoryLabel))
+
+    for label, value in record:
+        if label notin recordSet.fields:
+            continue
+
+        let desc = recordSet.fields[label]
+
+        case desc.kind
+        of FieldKind.Integer:
+            if not (value =~ integerPeg):
+                raise newException(IntegrityError, format("integer expected"))
+        else: discard
 
 iterator recordsInSet*(stream: Stream, kind: string): Record =
     var
