@@ -2,7 +2,7 @@ import unittest
 import streams
 import sequtils
 
-import nimrec
+import nimrec/[parser, record, recordset, utils]
 
 suite "parsing":
     test "basics":
@@ -95,12 +95,12 @@ Name: Foobar!
 
     test "parse error if colon missing":
         let ss = newStringStream("Name\nAge: 34\n")
-        expect(RecParseError):
+        expect(ParseError):
             discard toSeq(records(ss))
 
     test "parse error if invalid label":
         let ss = newStringStream("Name: John Doe\nFoo-bar: 111")
-        expect(RecParseError):
+        expect(ParseError):
             discard toSeq(records(ss))
 
     test "label can start with %":
@@ -114,7 +114,7 @@ Name: Foobar!
 
     test "field must be terminated by newline":
         let ss = newStringStream("%rec: Entry\n%type: Id int")
-        expect(RecParseError):
+        expect(ParseError):
             discard toSeq(records(ss))
 
     test "multiple fields with same label":
