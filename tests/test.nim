@@ -222,3 +222,191 @@ Email: jane@doe.me
         check(len(records) == 2)
         check("Email" notin records[0])
         check("Email" in records[1])
+
+suite "recordset":
+    test "basics":
+        const data = """
+%rec: Entry
+%doc: docs for Entry
+"""
+
+        var ss = newStringStream(data)
+        var records = toSeq(records(ss))
+        var rset = newRecordSet(records[0])
+
+        check(rset.kind == "Entry")
+        check(rset.doc == "docs for Entry")
+
+    test "descriptor skipped when iterating records":
+        const data = """
+%rec: Entry
+%doc: docs for Entry
+
+Name: John
+
+Name: Jane
+
+Name: Bill
+"""
+
+        var ss = newStringStream(data)
+        var records = toSeq(recordsInSet(ss, "Entry"))
+        check(len(records) == 3)
+        check(records[0]["Name"] == "John")
+        check(records[1]["Name"] == "Jane")
+        check(records[2]["Name"] == "Bill")
+
+    test "mandatory does not raise if all present":
+        const data = """
+%rec: Entry
+%mandatory: Name Age
+
+Name: John
+Age: 0
+
+Name: Jane
+Age: 0
+
+Name: Bill
+Age: 0
+"""
+
+        var ss = newStringStream(data)
+        var records = toSeq(recordsInSet(ss, "Entry"))
+        check(len(records) == 3)
+
+    test "mandatory raises if something is missing":
+        const data = """
+%rec: Entry
+%mandatory: Name Age
+
+Name: John
+Age: 0
+
+Name: Jane
+
+Name: Bill
+Age: 0
+"""
+
+        var ss = newStringStream(data)
+        expect(IntegrityError):
+            discard toSeq(recordsInSet(ss, "Entry"))
+
+    test "prohibit does not fail if fields not present":
+        const data = """
+%rec: Entry
+%prohibit: result
+
+Name: John
+
+Name: Jane
+
+Name: Bill
+"""
+
+        var ss = newStringStream(data)
+        var records = toSeq(recordsInSet(ss, "Entry"))
+        check(len(records) == 3)
+
+    test "prohibit fails if fields present":
+        const data = """
+%rec: Entry
+%prohibit: result
+
+Name: John
+
+Name: Jane
+
+Name: Bill
+result: 100
+"""
+
+        var ss = newStringStream(data)
+        expect(IntegrityError):
+            discard toSeq(recordsInSet(ss, "Entry"))
+
+    test "allowed allows allowed fields":
+        const data = """
+%rec: Entry
+%allowed: Name Age Address
+
+Name: John
+
+Name: Jane
+Age: 29
+
+Name: Bill
+Age: 56
+Address: 10 Foobar Way
+"""
+
+        var ss = newStringStream(data)
+        var records = toSeq(recordsInSet(ss, "Entry"))
+        check(len(records) == 3)
+
+    test "allowed does not allow undeclared fields":
+        const data = """
+%rec: Entry
+%allowed: Name Age Address
+
+Name: John
+
+Name: Jane
+Age: 29
+Phone: 12345
+
+Name: Bill
+Age: 56
+Address: 10 Foobar Way
+"""
+
+        var ss = newStringStream(data)
+        expect(IntegrityError):
+            discard toSeq(recordsInSet(ss, "Entry"))
+
+    test "mandatory and prohibit for same field fails":
+        const data1 = """
+%rec: Entry
+%mandatory: Name
+%prohibit: Name
+"""
+
+        var ss = newStringStream(data1)
+        var records = toSeq(records(ss))
+        expect(Exception):
+            discard newRecordSet(records[0])
+
+        const data2 = """
+%rec: Entry
+%prohibit: Name
+%mandatory: Name
+"""
+
+        ss = newStringStream(data2)
+        records = toSeq(records(ss))
+        expect(Exception):
+            discard newRecordSet(records[0])
+
+    test "allowed and prohibit for same field fails":
+        const data1 = """
+%rec: Entry
+%allowed: Name
+%prohibit: Name
+"""
+
+        var ss = newStringStream(data1)
+        var records = toSeq(records(ss))
+        expect(Exception):
+            discard newRecordSet(records[0])
+
+        const data2 = """
+%rec: Entry
+%prohibit: Name
+%allowed: Name
+"""
+
+        ss = newStringStream(data2)
+        records = toSeq(records(ss))
+        expect(Exception):
+            discard newRecordSet(records[0])
