@@ -13,6 +13,7 @@ import times
 type
     FieldKind* {.pure.} = enum
         Integer
+        Real
         String
 
     FieldDescriptor* = ref object
@@ -76,9 +77,13 @@ proc newRecordSet*(record: Record): RecordSet =
         let desc = addFieldDescriptor(result, label)
         case kind
         of "int": desc.kind = FieldKind.Integer
+        of "real": desc.kind = FieldKind.Real
         else: desc.kind = FieldKind.String
 
 let integerPeg = peg"^ '-'? ('0' / ([1-9] \d*)) $"
+
+# This should correspond to the JSON Number spec at the moment
+let realPeg = peg"^ '-'? ('0' / ([1-9] \d*)) ('.' \d+)? ([Ee] [+-]? \d+)? $"
 
 proc validate*(record: Record, recordSet: RecordSet) =
     let labels = toSet(toSeq(labels(record)))
@@ -106,6 +111,9 @@ proc validate*(record: Record, recordSet: RecordSet) =
         of FieldKind.Integer:
             if not (value =~ integerPeg):
                 raise newException(IntegrityError, format("integer expected"))
+        of FieldKind.Real:
+            if not (value =~ realPeg):
+                raise newException(IntegrityError, format("real expected"))
         else: discard
 
 iterator recordsInSet*(stream: Stream, kind: string): Record =

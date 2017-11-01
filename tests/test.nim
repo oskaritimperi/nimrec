@@ -433,3 +433,28 @@ suite "type basics: integers":
             let data = prologue & "Value: " & value & "\n"
             expect(Exception):
                 discard toSeq(recordsInSet(newStringStream(data), "Entry"))
+
+suite "type basics: reals":
+    const prologue = """
+%rec: Entry
+%type: Value real
+
+"""
+
+    test "valid reals":
+        const values = ["0", "1", "123456789", "987654321", "-123456789",
+            "-987654321", "-0",
+            "0.0", "0.12345", "1234.5678",
+            "1e8", "1E8", "1e+9", "1E-9", "1e10"]
+
+        for value in values:
+            let data = prologue & "Value: " & value & "\n"
+            discard toSeq(recordsInSet(newStringStream(data), "Entry"))
+
+    test "invalid reals":
+        const values = ["0.", "foobar", "01", "1-"]
+
+        for value in values:
+            let data = prologue & "Value: " & value & "\n"
+            expect(Exception):
+                discard toSeq(recordsInSet(newStringStream(data), "Entry"))
