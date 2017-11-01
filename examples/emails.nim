@@ -1,9 +1,8 @@
 import nimrec/[utils, record]
 
 for record in records("persons.rec"):
-    if not hasField(record, "Email"):
+    if "Email" notin record:
         continue
     echo(record["Name"])
-    for label, value in record:
-        if label == "Email":
-            echo("  " & value)
+    for email in values(record, "Email"):
+        echo("  " & email)
