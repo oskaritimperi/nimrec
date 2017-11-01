@@ -1,5 +1,4 @@
-import nimrec
-import streams
+import nimrec/[utils, record]
 
-for record in records(newFileStream("persons.rec")):
+for record in records("persons.rec"):
     echo(record["Name"])

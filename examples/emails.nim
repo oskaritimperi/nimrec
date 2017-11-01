@@ -1,7 +1,6 @@
-import nimrec
-import streams
+import nimrec/[utils, record]
 
-for record in records(newFileStream("persons.rec")):
+for record in records("persons.rec"):
     if not hasField(record, "Email"):
         continue
     echo(record["Name"])
